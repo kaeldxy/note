@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+
+    .icon {
+        width: 1em;
+        height: 1em;
+        vertical-align: -0.15em;
+        fill: currentColor;
+        overflow: hidden;
+    }
+
+
+
+    #file-input {
+        display: none;
+    }
+
+    .select-img-area {
+        max-width: 500px;
+
+        padding: 10px;
+        border: 2px solid #e8dcdc;
+        display: flex;
+        flex-wrap: wrap;
+        margin: 100px auto;
+        margin-bottom: 0px;
+    }
+
+    .img-item {
+        display: block;
+        position: relative;
+        padding: 4px;
+        margin: 0 5px 5px;
+        cursor: pointer;
+        border: 3px solid blue;
+        border-radius: 4px;
+    }
+
+    .item-init {
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+
+    .item-label {
+        display: block;
+        width: 100px;
+        height: 100px;
+        text-align: center;
+        line-height: 100px;
+        font-size: 40px;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.411);
+    }
+
+    .item-hover {
+        width: 100px;
+        height: 100px;
+        display: none;
+        justify-content: center;
+        align-items: center;
+        font-size: 40px;
+        font-weight: bold;
+        color: white;
+        background-color: rgba(0, 0, 0, 0.411);
+        position: absolute;
+        top: 4px;
+        left: 4px;
+    }
+
+    .img-item:hover>.item-hover {
+        display: flex;
+    }
+
+    .item-div-hover:hover {
+        color: blue;
+    }
+
+    .btn-load {
+        width: 100px;
+        height: 35px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border: 1px dashed #aaa;
+        color: #aaa;
+        font-size: 21px;
+        cursor: pointer;
+        margin: 0 auto;
+        border-radius: 10px;
+    }
+
+    .btn-load>span {
+        font-weight: bold;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+
+    .btn-load:hover {
+        color: blue;
+        border: 1px dashed blue;
+    }
+</style>
+
+<body>
+    <div>
+        <input type="file" name="" id="file-input" multiple />
+        <div class="select-img-area">
+            <label for="file-input" class="img-item item-label-wrap">
+                <div class="item-label item-div-hover">
+                    <svg class="icon" aria-hidden="true">
+                        <use xlink:href="#icon-21"></use>
+                    </svg>
+                </div>
+            </label>
+        </div>
+        <h1 style="text-align: center; font-size: 18px; font-weight: normal; margin: 10px 0;">拖拽文件到此处^</h1>
+    </div>
+    <div class="btn-load">
+        <svg class="icon" aria-hidden="true">
+            <use xlink:href="#icon-shangchuan"></use>
+        </svg><span>上传</span>
+    </div>
+    
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script src="./javascripts/utils/getFileURL.js"></script>
+    <script src="./javascripts/utils/zipImg.js"></script>
+    <script src="./javascripts/utils/iconfont.js"></script>
+    <script>
+
+        const fileInput = document.getElementById('file-input')
+        const btnLoad = document.querySelector('.btn-load')
+        const selectImgArea = document.querySelector('.select-img-area')
+        selectImgArea.addEventListener('dragover', (e) => {
+            e.preventDefault()
+            e.dataTransfer.dropEffect = 'copy'
+            
+        })
+
+        selectImgArea.addEventListener('drop', (e) => {
+            e.preventDefault()
+            console.log(e)
+            const files = e.dataTransfer.files
+            readeFiles(files)
+        })
+
+        selectImgArea.addEventListener('click', (e) => {
+            const target = e.target
+            const targetClassName = target.className
+            if(targetClassName === 'item-hover') {
+                console.log(target.dataset)
+            }
+        })
+
+        const readeFiles = files => {
+            
+            const len = files.length
+            let isRender = false
+            for (let i = 0; i < len; i++) {
+                const fileItem = files[i]
+                const fileName = fileItem.name
+                if (!fileList[fileName]) {
+                    fileList[fileName] = fileItem
+                    isRender = true
+                    fileList.length++
+                }
+            }
+            if (isRender) {
+                renderImg()
+            }
+        }
+
+        const fileList = {}
+        Object.defineProperty(fileList, 'length', {
+            writable: true,
+            value: 0,
+            enumerable: false,
+            configurable: false
+        });
+
+        const renderImg = () => {
+            const htmlArr = Object.entries(fileList).map(([key, item]) => `
+            <section class="img-item">
+                <img dragable="false" src="${getFileURL(item)}" class="item-init" alt="">
+                <div class="item-hover item-div-hover" data-key="${key}">
+                    <svg class="icon" aria-hidden="true">
+                        <use xlink:href="#icon-shanchu"></use>
+                    </svg>
+                </div>
+            </section>`)
+            const lableHtml = document.querySelector('[for="file-input"]').outerHTML
+            htmlArr.push(lableHtml)
+            const html = htmlArr
+            selectImgArea.innerHTML = htmlArr.join('')
+        }
+
+        fileInput.addEventListener('input', function () {
+            const files = this.files
+            readeFiles(files)
+        })
+
+        btnLoad.addEventListener('click', async () => {
+            const formData = new FormData()
+            for (const key in fileList) {
+                const file = fileList[key]
+                const blob = await zipImgPromise(file)
+                formData.append('img', blob, key)
+            }
+            const res = await axios.post('/users/upload', formData, {
+                cache: false,
+                contentType: false,
+                processData: false,
+                onUploadProgress: function (progressEvent) {
+                    console.log(`Uploaded ${progressEvent.loaded} of ${progressEvent.total} bytes`)
+                },
+            }).then(res => res.data)
+            console.log(res)
+        })
+    </script>
+</body>
+
+</html>
